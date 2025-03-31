@@ -4,28 +4,47 @@
 # In[1]:
 
 
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
+
+import os
+import re
+import sys
+import json
+import gc
+import warnings
+from datetime import datetime, date, timedelta
+
 import pandas as pd
 import numpy as np
-import warnings
-import os
-from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 import pyodbc
+import turbodbc
+from turbodbc import connect
+
+from IPython.display import JSON
+from mediascope_api.core import net as mscore
+from mediascope_api.mediavortex import tasks as cwt
+from mediascope_api.mediavortex import catalogs as cwc
+
+# Cоздаем объекты для работы с TVI API
+mnet = mscore.MediascopeApiNetwork()
+mtask = cwt.MediaVortexTask()
+cats = cwc.MediaVortexCats()
 
 import config
 from normalize_funcs import *
 from db_funcs import createDBTable, downloadTableToDB
 
-import turbodbc
-from turbodbc import connect
-import gc
-import sys
 
 db_name = config.db_name
+# ссылка на гугл csv Словарь чистки объявлений
 full_cleaning_link = config.full_cleaning_link
+# ссылка на гугл csv Словарь дисконтов по Типам медиа
+discounts_link = config.discounts_link
 
 
-# In[2]:
+# In[ ]:
 
 
 # Включаем отображение всех колонок
@@ -39,7 +58,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 pd.set_option('mode.chained_assignment', None)
 
 
-# In[3]:
+# In[ ]:
 
 
 # функция забирает гугл докс с чисткой Объявлений
@@ -56,6 +75,7 @@ def get_cleaning_dict(media_type_lst=None):
     df['media_type'] = df['media_type'].str.upper()
     # если в функцию передан список типов медиа, то оставляем только нужные строки
     if media_type_lst:
+        media_type_lst = [i.upper() for i in media_type_lst]
         df = df.query('media_type in @media_type_lst')
 # удаляем дубликаты
     df = df.drop_duplicates('media_key_id')
@@ -71,37 +91,139 @@ def get_cleaning_dict(media_type_lst=None):
     return df
 
 
-# In[4]:
+# In[2]:
 
 
-def update_cleanig_dict(flag='regular'):
-    custom_ad_dict = config.custom_ad_dict
+# создаем функцию для получения Дисконтов по типам медиа
+# можем передать в нее список с названиями типов медиа, по которым отфильтровать датаФрейм
+# по умолчанию забираем все
+
+def get_media_discounts(media_type_lst=None):
+    cols_count = [i for i in range(3)]
+    # опускаем заголовки на 1-ую строку датаФрейма и передаем номера столбцов, которые нам нужны
+    df = pd.read_csv(discounts_link, header=None, usecols=cols_count)
+    df = df.rename(columns=df.iloc[0]).drop(df.index[0])
+    df['media_type'] = df['media_type'].str.upper()
     
-    if flag=='first':
-        # создаем в БД таблицы для словарей
-        create_mssql_cleanig_dicts(db_name)
-        # забираем из гугл докса таблицу чистки и приводим ее в порядок
-        df = get_cleaning_dict()
-        # записываем в БД словарь для чистки
-        downloadTableToDB(db_name, custom_ad_dict, df)
-    else:
-        custom_ad_dict_vars_list = config.custom_ad_dict_vars_list
-        # удаляем существующий словарь
-        createDBTable(db_name, custom_ad_dict, custom_ad_dict_vars_list, flag='drop')
-        # забираем из гугл докса таблицу чистки и приводим ее в порядок
-        df = get_cleaning_dict()
-        # перезаписываем новые данные
-        downloadTableToDB(db_name, custom_ad_dict, df)
+    if media_type_lst:
+        media_type_lst = [i.upper() for i in media_type_lst]
+        df = df.query('media_type in @media_type_lst')
+        
+    df = normalize_columns_types(df, ['year'], ['disc'])
+    return df
 
 
-# In[5]:
+# In[6]:
 
 
-# update_cleanig_dict(flag='regular')
+
 
 
 # In[ ]:
 
 
 
+
+
+# In[ ]:
+
+
+dicts_lst = config.nat_tv_slices
+# Список параметров словарей ТВ Индекс для создания таблиц в БД и нормализации данных
+# Название таблицы / Список названий полей  в БД и типы данных / Список целочисденных полей
+tv_index_dicts = {
+    'advertiserListId': [config.tv_index_advertiser_list_dict, config.tv_index_advertiser_list_dict_vars_list, config.tv_index_advertiser_list_dict_int_lst],
+    'brandListId': [config.tv_index_brand_list_dict, config.tv_index_brand_list_dict_vars_list, config.tv_index_brand_list_dict_int_lst],
+    'subbrandListId': [config.tv_index_subbrand_list_dict, config.tv_index_subbrand_list_dict_vars_list, config.tv_index_subbrand_list_dict_int_lst],
+    'modelListId': [config.tv_index_model_list_dict, config.tv_index_model_list_dict_vars_list, config.tv_index_model_list_dict_int_lst],
+    'articleList2Id': [config.tv_index_article_list2_dict, config.tv_index_article_list2_dict_vars_list, config.tv_index_article_list2_dict_int_lst],
+    'articleList3Id': [config.tv_index_article_list3_dict, config.tv_index_article_list3_dict_vars_list, config.tv_index_article_list3_dict_int_lst],
+    'articleList4Id': [config.tv_index_article_list4_dict, config.tv_index_article_list4_dict_vars_list, config.tv_index_article_list4_dict_int_lst],
+    'adSloganAudioId': [config.tv_index_audio_slogan_dict, config.tv_index_audio_slogan_dict_vars_list, config.tv_index_audio_slogan_dict_int_lst],
+    'adSloganVideoId': [config.tv_index_video_slogan_dict, config.tv_index_video_slogan_dict_vars_list, config.tv_index_video_slogan_dict_int_lst],
+    'regionId': [config.tv_index_region_dict, config.tv_index_region_dict_vars_list, config.tv_index_region_dict_int_lst],
+    'tvNetId': [config.tv_index_tv_net_dict, config.tv_index_tv_net_dict_vars_list, config.tv_index_tv_net_dict_int_lst],
+    'tvCompanyId': [config.tv_index_tv_company_dict, config.tv_index_tv_company_dict_vars_list, config.tv_index_tv_company_dict_int_lst],
+    'adTypeId': [config.tv_index_ad_type_dict, config.tv_index_ad_type_dict_vars_list, config.tv_index_ad_type_dict_int_lst],
+}
+
+
+# In[ ]:
+
+
+def get_tv_index_dicts(dict_name, ids_lst=None):
+    if ids_lst:
+        ids_lst = [str(id) for id in ids_lst]
+        
+    if 'advertiserList' in dict_name:
+        df = cats.get_tv_advertiser_list(ids_lst)
+        df = df.rename(columns={'id': 'advertiserListId', 'name': 'advertiserListName', 'ename': 'advertiserListEName'})
+
+    if 'brandList' in dict_name:
+        df = cats.get_tv_brand_list(search_lst)
+        df = df.rename(columns={'id': 'brandListId', 'name': 'brandListName', 'ename': 'brandListEName'})
+        
+    if 'subbrandList' in dict_name:
+        df = cats.get_tv_subbrand_list(search_lst)
+        df = df.rename(columns={'id': 'subbrandListId', 'name': 'subbrandListName', 'ename': 'subbrandListEName'})
+
+    if 'modelList'in dict_name:
+        df = cats.get_tv_model_list(search_lst)
+        df = df.rename(columns={'id': 'modelListId', 'name': 'modelListName', 'ename': 'modelListEName'})
+        
+    if 'articleList2' in dict_name:
+        df = cats.get_tv_article_list2(search_lst)
+        df = df.rename(columns={'id': 'articleList2Id', 'name': 'articleList2Name', 'ename': 'articleList2EName'})
+
+    if 'articleList3' in dict_name:
+        df = cats.get_tv_article_list3(search_lst)
+        df = df.rename(columns={'id': 'articleList3Id', 'name': 'articleList3Name', 'ename': 'articleList3EName'})
+
+    if 'articleList4' in dict_name:
+        df = cats.get_tv_article_list4(search_lst)
+        df = df.rename(columns={'id': 'articleList4Id', 'name': 'articleList4Name', 'ename': 'articleList4EName'})
+                                
+    # if 'adId' in dict_name:
+    #     df = cats.get_tv_ad(search_lst)
+    #     df = df.rename(columns={'id': 'adId', 'name': 'adName', 'ename': 'adEName'})
+
+    if 'adSloganAudioId' in dict_name:
+        df = cats.get_tv_ad_slogan_audio(search_lst)
+        df = df.rename(columns={'id': 'adSloganAudioId', 'name': 'adSloganAudioName', 'notes': 'adSloganAudioNotes'})
+
+    if 'adSloganVideo' in dict_name:
+        df = cats.get_tv_ad_slogan_video(search_lst)
+        df = df.rename(columns={'id': 'adSloganVideoId', 'name': 'adSloganVideoName', 'notes': 'adSloganVideoNotes'})
+
+    if 'region' in dict_name:
+        df = cats.get_tv_region(search_lst)
+        df = df.rename(columns={'id': 'regionId', 'name': 'regionName', 'ename': 'regionEName'})
+
+    if 'tvNet' in dict_name:
+        df = cats.get_tv_net()
+        df = df.rename(columns={'id': 'tvNetId', 'name': 'tvNetName', 'ename': 'tvNetEName'})
+
+    if 'tvCompany' in dict_name:
+        df = cats.get_tv_company(search_lst)
+        df = df.rename(columns={'id': 'tvCompanyId', 'name': 'tvCompanyName', 'ename': 'tvCompanyEName'})
+
+    if 'adType' in dict_name:
+        df = cats.get_tv_ad_type(search_lst)
+        df = df.rename(columns={'id': 'adTypeId', 'name': 'adTypeName', 'ename': 'adTypeEName'})
+        
+    return df
+
+
+# In[ ]:
+
+
+dict_name = 'advertiserListId'
+ids_lst = [954, 1, 4]
+test = get_tv_index_dicts(dict_name, ids_lst)
+
+
+# In[ ]:
+
+
+test.head()
 

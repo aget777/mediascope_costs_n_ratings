@@ -86,6 +86,36 @@ def dropTable(db_name, table_name):
 # In[ ]:
 
 
+# создаем функцию для удаления строк из таблицы в БД по условию
+# условие передаем БЕЗ инструкции WHERE
+
+
+def removeRowsFromDB(db_name, table_name, cond):
+    conn = get_mssql_connection(db_name)
+    cursor = conn.cursor()
+
+    sql = f"""IF EXISTS(SELECT *
+              FROM   [dbo].{table_name})
+      DELETE FROM [dbo].{table_name} WHERE {cond}"""
+
+    try:
+        cursor.execute(sql)
+        conn.commit()
+        print(f'Строки с условием WHERE {cond} удалены из Таблицы: {table_name} в БД: {db_name}')
+        print('#' * 10)
+        
+    except:
+        print(f'Таблицы {table_name} не существует в БД {db_name}')
+    
+    conn.close()
+    cursor.close() 
+    
+    
+
+
+# In[ ]:
+
+
 # создаем таблицы через Быструю загрузку и определяем тип данных для каждого поля 
 # на входе наша функция принимает
 # - название таблицы, под которым она будет записана в БД
