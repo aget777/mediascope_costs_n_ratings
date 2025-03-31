@@ -94,8 +94,8 @@ def removeRowsFromDB(db_name, table_name, cond):
     conn = get_mssql_connection(db_name)
     cursor = conn.cursor()
 
-    sql = f"""IF EXISTS(SELECT *
-              FROM   [dbo].{table_name})
+    sql = f"""IF EXISTS(SELECT Top(1) *
+              FROM   [dbo].{table_name} WHERE {cond})
       DELETE FROM [dbo].{table_name} WHERE {cond}"""
 
     try:
