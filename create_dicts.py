@@ -195,21 +195,21 @@ def get_tv_index_dicts(dict_name, search_lst=None):
         df = cats.get_tv_ad_slogan_video(search_lst)
         df = df.rename(columns={'id': 'adSloganVideoId', 'name': 'adSloganVideoName', 'notes': 'adSloganVideoNotes'})
 
-    # if 'region' in dict_name:
-    #     df = cats.get_tv_region(search_lst)
-    #     df = df.rename(columns={'id': 'regionId', 'name': 'regionName', 'ename': 'regionEName'})
+    if 'region' in dict_name:
+        df = cats.get_tv_region(search_lst)
+        df = df.rename(columns={'id': 'regionId', 'name': 'regionName', 'ename': 'regionEName'})
 
-    # if 'tvNet' in dict_name:
-    #     df = cats.get_tv_net()
-    #     df = df.rename(columns={'id': 'tvNetId', 'name': 'tvNetName', 'ename': 'tvNetEName'})
+    if 'tvNet' in dict_name:
+        df = cats.get_tv_net()
+        df = df.rename(columns={'id': 'tvNetId', 'name': 'tvNetName', 'ename': 'tvNetEName'})
 
-    # if 'tvCompany' in dict_name:
-    #     df = cats.get_tv_company(search_lst)
-    #     df = df.rename(columns={'id': 'tvCompanyId', 'name': 'tvCompanyName', 'ename': 'tvCompanyEName'})
+    if 'tvCompany' in dict_name:
+        df = cats.get_tv_company(search_lst)
+        df = df.rename(columns={'id': 'tvCompanyId', 'name': 'tvCompanyName', 'ename': 'tvCompanyEName'})
 
-    # if 'adType' in dict_name:
-    #     df = cats.get_tv_ad_type(search_lst)
-    #     df = df.rename(columns={'id': 'adTypeId', 'name': 'adTypeName', 'ename': 'adTypeEName'})
+    if 'adType' in dict_name:
+        df = cats.get_tv_ad_type(search_lst)
+        df = df.rename(columns={'id': 'adTypeId', 'name': 'adTypeName', 'ename': 'adTypeEName'})
         
     return df
 
@@ -253,56 +253,23 @@ def update_tv_index_dicts():
         print(f'Новых данных для загрузки нет')
 
 
-# In[8]:
+# In[ ]:
 
 
 # update_tv_index_dicts()
 
 
-# In[ ]:
+# In[8]:
 
 
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
+def download_tv_index_default_dicts():
+    for key, value in config.tv_index_default_dicts.items():
+        # создаем пустые таблицы для словарей по умолчанию
+        createDBTable(db_name, value[0] , value[1], flag='create')
+        # отправляем запрос в ТВ индекс
+        df = get_tv_index_dicts(key)
+        # нормализуем данные
+        df = normalize_columns_types(df, value[2])
+        # записываем в БД
+        downloadTableToDB(db_name, value[0], df)
 
