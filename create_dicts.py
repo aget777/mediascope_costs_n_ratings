@@ -116,7 +116,24 @@ def get_media_discounts(media_type_lst=None):
 # In[6]:
 
 
-
+# # dicts_lst = config.nat_tv_slices
+# # Список параметров словарей ТВ Индекс для создания таблиц в БД и нормализации данных
+# # Название таблицы / Список названий полей  в БД и типы данных / Список целочисденных полей
+# tv_index_dicts = {
+#     'advertiserListId': [config.tv_index_advertiser_list_dict, config.tv_index_advertiser_list_dict_vars_list, config.tv_index_advertiser_list_dict_int_lst],
+#     'brandListId': [config.tv_index_brand_list_dict, config.tv_index_brand_list_dict_vars_list, config.tv_index_brand_list_dict_int_lst],
+#     'subbrandListId': [config.tv_index_subbrand_list_dict, config.tv_index_subbrand_list_dict_vars_list, config.tv_index_subbrand_list_dict_int_lst],
+#     'modelListId': [config.tv_index_model_list_dict, config.tv_index_model_list_dict_vars_list, config.tv_index_model_list_dict_int_lst],
+#     'articleList2Id': [config.tv_index_article_list2_dict, config.tv_index_article_list2_dict_vars_list, config.tv_index_article_list2_dict_int_lst],
+#     'articleList3Id': [config.tv_index_article_list3_dict, config.tv_index_article_list3_dict_vars_list, config.tv_index_article_list3_dict_int_lst],
+#     'articleList4Id': [config.tv_index_article_list4_dict, config.tv_index_article_list4_dict_vars_list, config.tv_index_article_list4_dict_int_lst],
+#     'adSloganAudioId': [config.tv_index_audio_slogan_dict, config.tv_index_audio_slogan_dict_vars_list, config.tv_index_audio_slogan_dict_int_lst],
+#     'adSloganVideoId': [config.tv_index_video_slogan_dict, config.tv_index_video_slogan_dict_vars_list, config.tv_index_video_slogan_dict_int_lst],
+#     'regionId': [config.tv_index_region_dict, config.tv_index_region_dict_vars_list, config.tv_index_region_dict_int_lst],
+#     'tvNetId': [config.tv_index_tv_net_dict, config.tv_index_tv_net_dict_vars_list, config.tv_index_tv_net_dict_int_lst],
+#     'tvCompanyId': [config.tv_index_tv_company_dict, config.tv_index_tv_company_dict_vars_list, config.tv_index_tv_company_dict_int_lst],
+#     'adTypeId': [config.tv_index_ad_type_dict, config.tv_index_ad_type_dict_vars_list, config.tv_index_ad_type_dict_int_lst],
+# }
 
 
 # In[ ]:
@@ -128,24 +145,7 @@ def get_media_discounts(media_type_lst=None):
 # In[ ]:
 
 
-dicts_lst = config.nat_tv_slices
-# Список параметров словарей ТВ Индекс для создания таблиц в БД и нормализации данных
-# Название таблицы / Список названий полей  в БД и типы данных / Список целочисденных полей
-tv_index_dicts = {
-    'advertiserListId': [config.tv_index_advertiser_list_dict, config.tv_index_advertiser_list_dict_vars_list, config.tv_index_advertiser_list_dict_int_lst],
-    'brandListId': [config.tv_index_brand_list_dict, config.tv_index_brand_list_dict_vars_list, config.tv_index_brand_list_dict_int_lst],
-    'subbrandListId': [config.tv_index_subbrand_list_dict, config.tv_index_subbrand_list_dict_vars_list, config.tv_index_subbrand_list_dict_int_lst],
-    'modelListId': [config.tv_index_model_list_dict, config.tv_index_model_list_dict_vars_list, config.tv_index_model_list_dict_int_lst],
-    'articleList2Id': [config.tv_index_article_list2_dict, config.tv_index_article_list2_dict_vars_list, config.tv_index_article_list2_dict_int_lst],
-    'articleList3Id': [config.tv_index_article_list3_dict, config.tv_index_article_list3_dict_vars_list, config.tv_index_article_list3_dict_int_lst],
-    'articleList4Id': [config.tv_index_article_list4_dict, config.tv_index_article_list4_dict_vars_list, config.tv_index_article_list4_dict_int_lst],
-    'adSloganAudioId': [config.tv_index_audio_slogan_dict, config.tv_index_audio_slogan_dict_vars_list, config.tv_index_audio_slogan_dict_int_lst],
-    'adSloganVideoId': [config.tv_index_video_slogan_dict, config.tv_index_video_slogan_dict_vars_list, config.tv_index_video_slogan_dict_int_lst],
-    'regionId': [config.tv_index_region_dict, config.tv_index_region_dict_vars_list, config.tv_index_region_dict_int_lst],
-    'tvNetId': [config.tv_index_tv_net_dict, config.tv_index_tv_net_dict_vars_list, config.tv_index_tv_net_dict_int_lst],
-    'tvCompanyId': [config.tv_index_tv_company_dict, config.tv_index_tv_company_dict_vars_list, config.tv_index_tv_company_dict_int_lst],
-    'adTypeId': [config.tv_index_ad_type_dict, config.tv_index_ad_type_dict_vars_list, config.tv_index_ad_type_dict_int_lst],
-}
+
 
 
 # In[ ]:
@@ -217,13 +217,11 @@ def get_tv_index_dicts(dict_name, ids_lst=None):
 # In[ ]:
 
 
-dict_name = 'advertiserListId'
-ids_lst = [954, 1, 4]
-test = get_tv_index_dicts(dict_name, ids_lst)
+
 
 
 # In[ ]:
 
 
-test.head()
+
 
