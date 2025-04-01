@@ -262,6 +262,12 @@ def update_tv_index_dicts():
 # In[8]:
 
 
+# с помощью этой функции мы создаем и заполняем словари из ТВ Индекс
+# есть набор некоторы таблиц, которые НЕ связаны с ИД объявления
+# соответсвенно их нет в справочнике nat_tv_ad_dict
+# поэтому при первой загрузке данных мы создаем и сразу заполняем такие справочники
+# в дальнейшешем их НЕ нужно обновлять, т.е. они хранятся в неизменном виде
+# список справочников по умолчанию указан в этом словаре tv_index_default_dicts
 def download_tv_index_default_dicts():
     for key, value in config.tv_index_default_dicts.items():
         # создаем пустые таблицы для словарей по умолчанию
@@ -272,4 +278,65 @@ def download_tv_index_default_dicts():
         df = normalize_columns_types(df, value[2])
         # записываем в БД
         downloadTableToDB(db_name, value[0], df)
+
+
+# In[ ]:
+
+
+# функция для обонвления основного справочнка объявлений nat_tv_ad_dict
+# ее запускаем в самую после заливки данных из ТВ индекс и обновления всех справочников
+# НО ПЕРЕД заливкой новых объявлений в гугл докс
+
+def update_nat_tv_ad_dict():
+    # забираем гугл докс с чисткой
+    df_cleaning_dict = get_cleaning_dict(media_type_lst=['tv'])
+    # нормализуем типы данных
+    df_cleaning_dict = normalize_columns_types(df_cleaning_dict, config.custom_ad_dict_int_lst) 
+    
+    # создаем список из названий полей, которые нам нужны дальше для метчинга
+    custom_cols_list = [col[:col.find(' ')] for col in config.custom_ad_dict_vars_list]
+    custom_cols_list = list(set(custom_cols_list) - set(['ad_id', 'media_type']))
+    # оставляем только нужные поля
+    df_cleaning_dict = df_cleaning_dict[custom_cols_list]
+    
+    # формируем список названий полей, которые нам нужно забрать из БД
+    # из справочника nat_tv_ad_dict
+    nat_tv_ad_dict_short_cols = [col[:col.find(' ')] for col in config.nat_tv_ad_dict_vars_list]
+    nat_tv_ad_dict_short_cols = list(set(nat_tv_ad_dict_short_cols) - set(custom_cols_list)) + ['media_key_id']
+    # приводим список к строке
+    nat_tv_ad_dict_short_cols = ', '.join(nat_tv_ad_dict_short_cols)
+    
+    # отправляем запрос в БД и забираем ВСЕ строки и нужные поля
+    query = f"select {nat_tv_ad_dict_short_cols}  from {config.nat_tv_ad_dict}"
+    nat_tv_ad_dict_df = get_mssql_table(db_name, query=query) 
+
+    # объединяем справочник из БД с таблицей чистки
+    nat_tv_ad_dict_df = nat_tv_ad_dict_df.merge(df_cleaning_dict, how='left', left_on=['media_key_id'], right_on=['media_key_id'])
+    # ИД объявлений, которые НЕ нашли сопосталвения, мы считаем новыми и присваимаем им флаг=2
+    nat_tv_ad_dict_df['cleaning_flag'] = nat_tv_ad_dict_df['cleaning_flag'].fillna(2)
+    # остальные NaN заполняем пустотой
+    nat_tv_ad_dict_df = nat_tv_ad_dict_df.fillna('')
+    # создаем список полей, которые нужно оставить в этом датаФрейме
+    nat_tv_ad_dict_cols = [col[:col.find(' ')] for col in config.nat_tv_ad_dict_vars_list]
+    nat_tv_ad_dict_df = nat_tv_ad_dict_df[nat_tv_ad_dict_cols]
+    # нормализуем типы данных
+    nat_tv_ad_dict_df = normalize_columns_types(nat_tv_ad_dict_df, config.nat_tv_ad_dict_int_lst)
+    
+    # удаляем все данные из справочника nat_tv_ad_dict в БД 
+    createDBTable(db_name, config.nat_tv_ad_dict, config.nat_tv_ad_dict_vars_list, flag='drop')
+    
+    # записываем новые данные в справочник Объявлений
+    downloadTableToDB(db_name, config.nat_tv_ad_dict, nat_tv_ad_dict_df)
+
+
+# In[77]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
