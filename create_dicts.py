@@ -113,7 +113,7 @@ def get_media_discounts(media_type_lst=None):
     return df
 
 
-# In[ ]:
+# In[5]:
 
 
 # # dicts_lst = config.nat_tv_slices
@@ -148,7 +148,7 @@ def get_media_discounts(media_type_lst=None):
 
 
 
-# In[5]:
+# In[6]:
 
 
 def get_tv_index_dicts(dict_name, search_lst=None):
@@ -214,7 +214,7 @@ def get_tv_index_dicts(dict_name, search_lst=None):
     return df
 
 
-# In[6]:
+# In[7]:
 
 
 # функция для обновления всех словарей ТВ индекс КРОМЕ nat_tv_ad_dict
@@ -239,27 +239,38 @@ def update_tv_index_dicts():
         for key, value in config.tv_index_dicts.items():
             # передаем в SQL запрос название поля, которое нас интересует
             query = f"select distinct {key} from nat_tv_ad_dict where cleaning_flag=2"
-            df = get_mssql_table(config.db_name, query=query)
+            # отправляем запрос в Общий справочник объявлений
+            ad_dict= get_mssql_table(config.db_name, query=query)
+            # переводим ИД в список
+            ad_dict = ad_dict[key].tolist()
+            # Готовим запрос к отдельному справочнику, по котором хотим сделать обновление
+            query = f"select distinct {key} from {value[0]}"
+            target_dict= get_mssql_table(config.db_name, query=query)
+            # переводим ИД в список
+            target_dict = target_dict[key].tolist()
             
-            # преобразуем датаФрейм из 1 столбца в список
-            search_lst = df[key].tolist()
-            # отправляем запрос в ТВ индекс
-            df = get_tv_index_dicts(key, search_lst)
-            # нормализуем данные
-            df = normalize_columns_types(df, value[2])
-            # записываем в БД
-            downloadTableToDB(db_name, value[0], df)
+            # теперь мы хотим узнать в Общем справочнике nat_tv_ad_dict
+            # есть ли какие-то ИД, которых НЕТ в другом
+            search_lst = list(set(ad_dict) - set(target_dict))
+            # если такие ИД есть, то передаем их на загрузку характеристик из ТВ Индекса
+            if search_lst:
+                # отправляем запрос в ТВ индекс
+                df = get_tv_index_dicts(key, search_lst)
+                # нормализуем данные
+                df = normalize_columns_types(df, value[2])
+                # записываем в БД
+                downloadTableToDB(db_name, value[0], df)
     else:
         print(f'Новых данных для загрузки нет')
 
 
-# In[ ]:
+# In[8]:
 
 
 # update_tv_index_dicts()
 
 
-# In[8]:
+# In[9]:
 
 
 # с помощью этой функции мы создаем и заполняем словари из ТВ Индекс
@@ -280,7 +291,7 @@ def download_tv_index_default_dicts():
         downloadTableToDB(db_name, value[0], df)
 
 
-# In[ ]:
+# In[10]:
 
 
 # функция для обонвления основного справочнка объявлений nat_tv_ad_dict
@@ -329,7 +340,43 @@ def update_nat_tv_ad_dict():
     downloadTableToDB(db_name, config.nat_tv_ad_dict, nat_tv_ad_dict_df)
 
 
-# In[77]:
+# In[11]:
+
+
+# update_nat_tv_ad_dict()
+
+
+# In[ ]:
+
+
+
+
+
+# In[13]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
 
 
 
