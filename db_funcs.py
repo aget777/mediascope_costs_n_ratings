@@ -64,7 +64,7 @@ def dropTable(db_name, table_name):
     conn = get_mssql_connection(db_name)
     cursor = conn.cursor()
 
-    sql = f"""IF EXISTS(SELECT *
+    sql = f"""IF EXISTS(SELECT TOP(1)*
               FROM   [dbo].{table_name})
       DROP TABLE [dbo].{table_name}"""
 
