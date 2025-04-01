@@ -34,8 +34,8 @@ cats = cwc.MediaVortexCats()
 
 import config
 from normalize_funcs import *
-from db_funcs import createDBTable, downloadTableToDB
-
+from db_funcs import createDBTable, downloadTableToDB, get_mssql_table
+ 
 
 db_name = config.db_name
 # ссылка на гугл csv Словарь чистки объявлений
@@ -44,7 +44,7 @@ full_cleaning_link = config.full_cleaning_link
 discounts_link = config.discounts_link
 
 
-# In[ ]:
+# In[2]:
 
 
 # Включаем отображение всех колонок
@@ -58,7 +58,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 pd.set_option('mode.chained_assignment', None)
 
 
-# In[ ]:
+# In[3]:
 
 
 # функция забирает гугл докс с чисткой Объявлений
@@ -91,7 +91,7 @@ def get_cleaning_dict(media_type_lst=None):
     return df
 
 
-# In[2]:
+# In[4]:
 
 
 # создаем функцию для получения Дисконтов по типам медиа
@@ -113,7 +113,7 @@ def get_media_discounts(media_type_lst=None):
     return df
 
 
-# In[6]:
+# In[ ]:
 
 
 # # dicts_lst = config.nat_tv_slices
@@ -148,15 +148,15 @@ def get_media_discounts(media_type_lst=None):
 
 
 
-# In[ ]:
+# In[5]:
 
 
-def get_tv_index_dicts(dict_name, ids_lst=None):
-    if ids_lst:
-        ids_lst = [str(id) for id in ids_lst]
+def get_tv_index_dicts(dict_name, search_lst=None):
+    if search_lst:
+        search_lst = [str(id) for id in search_lst]
         
     if 'advertiserList' in dict_name:
-        df = cats.get_tv_advertiser_list(ids_lst)
+        df = cats.get_tv_advertiser_list(search_lst)
         df = df.rename(columns={'id': 'advertiserListId', 'name': 'advertiserListName', 'ename': 'advertiserListEName'})
 
     if 'brandList' in dict_name:
@@ -195,23 +195,104 @@ def get_tv_index_dicts(dict_name, ids_lst=None):
         df = cats.get_tv_ad_slogan_video(search_lst)
         df = df.rename(columns={'id': 'adSloganVideoId', 'name': 'adSloganVideoName', 'notes': 'adSloganVideoNotes'})
 
-    if 'region' in dict_name:
-        df = cats.get_tv_region(search_lst)
-        df = df.rename(columns={'id': 'regionId', 'name': 'regionName', 'ename': 'regionEName'})
+    # if 'region' in dict_name:
+    #     df = cats.get_tv_region(search_lst)
+    #     df = df.rename(columns={'id': 'regionId', 'name': 'regionName', 'ename': 'regionEName'})
 
-    if 'tvNet' in dict_name:
-        df = cats.get_tv_net()
-        df = df.rename(columns={'id': 'tvNetId', 'name': 'tvNetName', 'ename': 'tvNetEName'})
+    # if 'tvNet' in dict_name:
+    #     df = cats.get_tv_net()
+    #     df = df.rename(columns={'id': 'tvNetId', 'name': 'tvNetName', 'ename': 'tvNetEName'})
 
-    if 'tvCompany' in dict_name:
-        df = cats.get_tv_company(search_lst)
-        df = df.rename(columns={'id': 'tvCompanyId', 'name': 'tvCompanyName', 'ename': 'tvCompanyEName'})
+    # if 'tvCompany' in dict_name:
+    #     df = cats.get_tv_company(search_lst)
+    #     df = df.rename(columns={'id': 'tvCompanyId', 'name': 'tvCompanyName', 'ename': 'tvCompanyEName'})
 
-    if 'adType' in dict_name:
-        df = cats.get_tv_ad_type(search_lst)
-        df = df.rename(columns={'id': 'adTypeId', 'name': 'adTypeName', 'ename': 'adTypeEName'})
+    # if 'adType' in dict_name:
+    #     df = cats.get_tv_ad_type(search_lst)
+    #     df = df.rename(columns={'id': 'adTypeId', 'name': 'adTypeName', 'ename': 'adTypeEName'})
         
     return df
+
+
+# In[6]:
+
+
+# функция для обновления всех словарей ТВ индекс КРОМЕ nat_tv_ad_dict
+# После записи данных в отчеты Simple и Buying
+# в справочнике nat_tv_ad_dict - содержится cleanig_flag, который еше НЕ обновился
+# таким образом у нас зафиксировано состояние с прошлой загрузки и мы можем понять, какие новые объявления появилсь в БД
+# для этого по каждому отдельному столбцу, который является ключом для верхнеуровневых справочников
+# мы забираем список уникальных ИД, у которых cleanig_flag=2 (т.е. только новые объявления)
+# список этих ИД мы передаем в запрос к ТВ Индексу, чтобы только то, что нам нужно
+# в конце жобавляем новые строки к справочникам
+def update_tv_index_dicts():
+    
+    # сначала проверяем справочник объявлений - есть там новые или нет
+    query = f"select top(1) adId from nat_tv_ad_dict where cleaning_flag=2"
+    df = get_mssql_table(config.db_name, query=query)
+    
+    # если ответ НЕ пустой, то запускаем логику обновления всех верхнеуровневых справочников
+    if not df.empty:
+        # у нас сформирован справочник словарей
+        # Список параметров словарей ТВ Индекс для создания таблиц в БД и нормализации данных
+        # Название таблицы / Список названий полей  в БД и типы данных / Список целочисденных полей
+        for key, value in config.tv_index_dicts.items():
+            # передаем в SQL запрос название поля, которое нас интересует
+            query = f"select distinct {key} from nat_tv_ad_dict where cleaning_flag=2"
+            df = get_mssql_table(config.db_name, query=query)
+            
+            # преобразуем датаФрейм из 1 столбца в список
+            search_lst = df[key].tolist()
+            # отправляем запрос в ТВ индекс
+            df = get_tv_index_dicts(key, search_lst)
+            # нормализуем данные
+            df = normalize_columns_types(df, value[2])
+            # записываем в БД
+            downloadTableToDB(db_name, value[0], df)
+    else:
+        print(f'Новых данных для загрузки нет')
+
+
+# In[8]:
+
+
+# update_tv_index_dicts()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
