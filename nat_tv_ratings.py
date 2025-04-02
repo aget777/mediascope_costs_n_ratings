@@ -33,7 +33,7 @@ from mediascope_api.mediavortex import catalogs as cwc
 import config
 from normalize_funcs import *
 from db_funcs import createDBTable, downloadTableToDB, get_mssql_table, removeRowsFromDB
-from create_dicts import get_cleaning_dict, get_media_discounts
+from create_dicts import get_cleaning_dict, get_media_discounts, download_tv_index_default_dicts
 
 
 
@@ -46,15 +46,15 @@ db_name = config.db_name
 # nat_tv_bying_statistics = config.nat_tv_bying_statistics
 
 # создаем список с названиями типов медиа, по которым отфильтровать гугл докс с чисткой
-media_type_lst = ['TV']
+# media_type_lst = ['TV']
 # tv_index_dicts = config.tv_index_dicts
-start_date = '2023-01-01'
-start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+# start_date = '2023-01-01'
+# start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
 
-end_date = '2023-01-02'
-end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+# end_date = '2023-01-02'
+# end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-print(f'start_date: {start_date} / end_date: {end_date}')
+# print(f'start_date: {start_date} / end_date: {end_date}')
 
 
 # In[ ]:
@@ -135,6 +135,9 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         createDBTable(db_name, config.nat_tv_buying , config.nat_tv_buying_vars_list, flag='create')
         # создаем пустую таблицу-справочник объявлений
         createDBTable(db_name, config.nat_tv_ad_dict , config.nat_tv_ad_dict_vars_list, flag='create')
+        # создаем и заполняем данными словари по умолчанию
+        download_tv_index_default_dicts()
+        
         # создаем пустые словари справочников через цикл
         # забираем из файла create_dicts - словарь, где 
         # ключ - это название поля из отчета Simpe(для дальнейшего удобства так сделано)
@@ -182,9 +185,13 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         removeRowsFromDB(db_name, config.nat_tv_simple, cond)
         removeRowsFromDB(db_name, config.nat_tv_buying, cond)
         print()
+    else:
+        start_date = datetime.strptime(str(start_date), '%Y-%m-%d').date()
 # Если дата окончани загрузки НЕ задана, то мы считаем минус 3 дня от текущей даты
     if not end_date:
         end_date = (datetime.now().date()  - timedelta(days=3))
+    else:
+        end_date = datetime.strptime(str(end_date), '%Y-%m-%d').date()
         
     # считаем кол-во дней в периоде
     # каждый день мы будем забирать по отдельности и записывать его в БД
@@ -236,7 +243,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # создаем отдельный датаФрейм с ИД объявлений и флагом чистки
         # df_cleaning_custom_id = custom_cleaning_dict[['ad_id', 'cleaning_flag']]
         # забираем таблицу Медиа дисконтов
-        media_discounts = get_media_discounts(media_type_lst)
+        media_discounts = get_media_discounts(['TV'])
         # добавляем флаг чистки в датаФрейм
         df_simple_final = append_custom_columns(df_simple_final, nat_tv_ad_dict_df, media_discounts)
         # Нормализуем все поля в датаФрейме
@@ -245,6 +252,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         
         # создаем таблицу с уникальными объявлениями и их характеристиками
         simple_ad_dict_df = df_simple_final[nat_tv_ad_dict_cols_list].drop_duplicates('media_key_id')
+       
         # забираем из БД из справочника объявлений уникальные ИД
         query = f"select distinct adId  from {config.nat_tv_ad_dict}"
         nat_tv_ad_id_dict = get_mssql_table(db_name, query=query)
@@ -252,6 +260,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         nat_tv_ad_id_lst = list(nat_tv_ad_id_dict['adId'])
         # оставляем только те объявления, которых нет в справочнике
         simple_ad_dict_df = simple_ad_dict_df.query('adId not in @nat_tv_ad_id_lst')
+        
         # на всякий случай обрезаем описание объявления до 500 символов, чтобы не было переполнения строки
         simple_ad_dict_df['adNotes'] = simple_ad_dict_df['adNotes'].str.slice(0, 500)
         # нормализуем типы данных
@@ -428,16 +437,22 @@ def get_nat_tv_buying_report(weekday_filter=None, date_filter=None,time_filter=N
 # get_nat_tv_reports(flag='first')
 
 
-# In[ ]:
+# In[2]:
 
 
+# start_date = '2025-03-25'
+# start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+
+# end_date = '2025-03-27'
+# end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+# print(f'start_date: {start_date} / end_date: {end_date}')
 
 
-
-# In[ ]:
-
+# In[1]:
 
 
+# get_nat_tv_reports(start_date=start_date, end_date=end_date, flag='regular')
 
 
 # In[ ]:
