@@ -157,6 +157,7 @@ def get_tv_index_dicts(dict_name, search_lst=None):
         
     if 'advertiserList' in dict_name:
         df = cats.get_tv_advertiser_list(search_lst)
+        df[['name', 'ename']]
         df = df.rename(columns={'id': 'advertiserListId', 'name': 'advertiserListName', 'ename': 'advertiserListEName'})
 
     if 'brandList' in dict_name:
