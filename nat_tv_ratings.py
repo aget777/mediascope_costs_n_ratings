@@ -86,27 +86,39 @@ sep_str = '*' * 50
 # на вход принимает основной датаФрейм
 # и сокращенный датаФрейм из гугл диска, в котором оставили только ИД объявления и флаг чистки
 # если объявления нет в гуглдоксе, то ставим флаг 2
-
-def append_custom_columns(df, nat_tv_ad_dict, media_discounts):
+# report simple/buying - в зависимости от типа отчета используем разную логику
+# для отчета simple - добавляем флаг чистки из БД
+# для отчета buying добавляем дисконт к расходам по году и типу медиа
+def append_custom_columns(df, nat_tv_ad_dict=None, report='simple'):
     # добавляем поле с типом мелиа - TV
     # создаем спец ключ для объединения со справочником чистка объявлений
     df['media_type'] = 'TV'
     df['media_key_id'] = df['media_type'] + '_' + df['adId']
-# забираем Год из даты отчета, чтобы добавить дисконт
-    df['year'] = df['researchDate'].str.slice(0, 4)
-    df['year'] = df['year'].astype('int64')
-    # чтобы соеденить со словарем приводим adId к типу int64
-    # df['adId'] = df['adId'].astype('int64')
-    # добавляем флаг чистки в датаФрейм
-    df = df.merge(nat_tv_ad_dict, how='left', left_on=['media_key_id'], right_on=['media_key_id'])
-    # удаляем лишнее поле
-    # df = df.drop(columns=['ad_id'])
-    # ставим флаг чистки = 2 для ИД новый неочищенных объявлений
-    df['cleaning_flag'] = df['cleaning_flag'].fillna(2)
-    df = df.fillna('')
-    # Добавляем размер дисконта по Типу медиа и Году
-    df = df.merge(media_discounts, how='left', left_on=['media_type', 'year'], right_on=['media_type', 'year'])
-    df['ConsolidatedCostRUB_disc'] = df['ConsolidatedCostRUB'] * df['disc']
+    
+    if report.lower()=='buying':
+        # забираем таблицу Медиа дисконтов
+        media_discounts = get_media_discounts(['TV'])
+    # забираем Год из даты отчета, чтобы добавить дисконт
+        df['year'] = df['researchDate'].str.slice(0, 4)
+        df['year'] = df['year'].astype('int64')
+        
+        df = df.merge(media_discounts, how='left', left_on=['media_type', 'year'], right_on=['media_type', 'year'])
+        df['ConsolidatedCostRUB_disc'] = df['ConsolidatedCostRUB'] * df['disc']
+        
+        return df
+        
+    if report.lower()=='simple':
+        # чтобы соеденить со словарем приводим adId к типу int64
+        # df['adId'] = df['adId'].astype('int64')
+        # добавляем флаг чистки в датаФрейм
+        df = df.merge(nat_tv_ad_dict, how='left', left_on=['media_key_id'], right_on=['media_key_id'])
+        # удаляем лишнее поле
+        # df = df.drop(columns=['ad_id'])
+        # ставим флаг чистки = 2 для ИД новый неочищенных объявлений
+        df['cleaning_flag'] = df['cleaning_flag'].fillna(2)
+        df = df.fillna('')
+        # Добавляем размер дисконта по Типу медиа и Году
+    
     
     return df
 
@@ -219,8 +231,10 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # Забираем статистику по отчету Buying
         df_buying_final = get_nat_tv_buying_report(date_filter=date_filter)
         df_buying_final['prj_name'] = 'Total_buying_aud'
-        df_buying_final['media_type'] = 'TV'
-        df_buying_final['media_key_id'] = df_buying_final['media_type'] + '_' + df_buying_final['adId']
+        # df_buying_final['media_type'] = 'TV'
+        # df_buying_final['media_key_id'] = df_buying_final['media_type'] + '_' + df_buying_final['adId']
+        # Добавляем тип медиа и Дисконты к расходым по годам
+        df_buying_final = append_custom_columns(df_buying_final, report='buying')
         # нормализуем отчет по Баинговой аудитории
         df_buying_final = normalize_columns_types(df_buying_final, config.nat_tv_buying_int_lst, config.nat_tv_buying_float_lst)
         
@@ -242,10 +256,10 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         df_simple_final = get_nat_tv_simple_report(date_filter=date_filter)
         # создаем отдельный датаФрейм с ИД объявлений и флагом чистки
         # df_cleaning_custom_id = custom_cleaning_dict[['ad_id', 'cleaning_flag']]
-        # забираем таблицу Медиа дисконтов
-        media_discounts = get_media_discounts(['TV'])
+        # # забираем таблицу Медиа дисконтов
+        # media_discounts = get_media_discounts(['TV'])
         # добавляем флаг чистки в датаФрейм
-        df_simple_final = append_custom_columns(df_simple_final, nat_tv_ad_dict_df, media_discounts)
+        df_simple_final = append_custom_columns(df_simple_final, nat_tv_ad_dict=nat_tv_ad_dict_df, report='simple')
         # Нормализуем все поля в датаФрейме
         df_simple_final = normalize_columns_types(df_simple_final, config.nat_tv_simple_int_lst, config.nat_tv_simple_float_lst)
         
@@ -437,28 +451,28 @@ def get_nat_tv_buying_report(weekday_filter=None, date_filter=None,time_filter=N
 # get_nat_tv_reports(flag='first')
 
 
-# In[2]:
+# In[8]:
 
 
-# start_date = '2025-03-25'
+# start_date = '2023-01-01' #'2023-01-01' '2025-03-25'
 # start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
 
-# end_date = '2025-03-27'
+# end_date = '2023-01-02' #'2023-01-02' '2025-03-27'
 # end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
 # print(f'start_date: {start_date} / end_date: {end_date}')
 
 
-# In[1]:
+# In[9]:
 
 
 # get_nat_tv_reports(start_date=start_date, end_date=end_date, flag='regular')
 
 
-# In[ ]:
+# In[10]:
 
 
-
+# get_nat_tv_reports(start_date=start_date, end_date=end_date, flag='first')
 
 
 # In[ ]:

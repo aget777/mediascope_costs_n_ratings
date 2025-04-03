@@ -1,3 +1,4 @@
+/*Добавить в справочник названия категорий cleaning_flag=2*/
 select 
 t1.media_type, t1.media_key_id, t1.adId, t1.adName, t1.adNotes, t1.adFirstIssueDate,
 t1.advertiserListId, t2.advertiserListName, t1.brandListId, t3.brandListName,
@@ -7,7 +8,7 @@ t1.articleList4Id, t8.articleList4Name, t1.adSloganAudioId, t9.adSloganAudioName
 t1.adSloganVideoId, t10.adSloganVideoName
 from 
 (select * from nat_tv_ad_dict
-where cleaning_flag=1) t1 left join tv_index_advertiser_list_dict t2
+where cleaning_flag=2) t1 left join tv_index_advertiser_list_dict t2
 on t1.advertiserListId=t2.advertiserListId
 left join tv_index_brand_list_dict t3
 on t1.brandListId=t3.brandListId
@@ -26,6 +27,25 @@ on t1.adSloganAudioId=t9.adSloganAudioId
 left join tv_index_video_slogan_dict t10
 on t1.adSloganVideoId=t10.adSloganVideoId
 
+/* Оставить в Simple объявления cleaning_flag=1 */
+select 
+t1.prj_name, t1.media_key_id, t1.media_type, t1.adId, t1.researchDate, t1.adStartTime,
+t1.tvCompanyId, t1.adDistributionTypeName, t1.adPrimeTimeStatusName, t1.adPositionTypeName,
+t1.regionId, t1.adTypeId, t1.adSpotId, t1.adStandardDuration, t1.Rtg000, t1.RtgPer,
+t1.StandRtgPer
+from nat_tv_simple t1 left join nat_tv_ad_dict t2
+on t1.adId=t2.adId
+where t2.cleaning_flag=1
+
+/* Оставить в buying объявления cleaning_flag=1 */
+select 
+t1.prj_name, t1.media_key_id, t1.media_type, t1.adId, t1.researchDate, t1.adStartTime,
+t1.tvCompanyId, t1.adDistributionTypeName, t1.adPrimeTimeStatusName, t1.adPositionTypeName,
+t1.regionId, t1.adTypeId, t1.adSpotId, t1.adStandardDuration, t1.SalesRtgPer, t1.StandSalesRtgPer,
+t1.Quantity, t1.ConsolidatedCostRUB, t1.ConsolidatedCostRUB_disc 
+from nat_tv_buying t1 left join nat_tv_ad_dict t2
+on t1.adId=t2.adId
+where t2.cleaning_flag=1
 
 select count(*) from tv_index_advertiser_list_dict;
 select count(distinct advertiserListId) from tv_index_advertiser_list_dict
