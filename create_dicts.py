@@ -33,6 +33,7 @@ mtask = cwt.MediaVortexTask()
 cats = cwc.MediaVortexCats()
 
 import config
+import config_tv_index
 from normalize_funcs import *
 from db_funcs import createDBTable, downloadTableToDB, get_mssql_table
  
@@ -85,7 +86,7 @@ def get_cleaning_dict(media_type_lst=None):
     df['cleaning_flag'] = df['include_exclude'].apply(lambda x: 1 if x=='include' else 0)
     df = df.drop(['ad_transcribtion'], axis=1)
 # приводим строки в верхний регистр, нормализуем цифры и тд.
-    custom_ad_dict_int_lst = config.custom_ad_dict_int_lst
+    custom_ad_dict_int_lst = config_tv_index.custom_ad_dict_int_lst
     df = normalize_columns_types(df, custom_ad_dict_int_lst)
 
     return df
@@ -237,7 +238,7 @@ def update_tv_index_dicts():
         # у нас сформирован справочник словарей
         # Список параметров словарей ТВ Индекс для создания таблиц в БД и нормализации данных
         # Название таблицы / Список названий полей  в БД и типы данных / Список целочисденных полей
-        for key, value in config.tv_index_dicts.items():
+        for key, value in config_tv_index.tv_index_dicts.items():
             # передаем в SQL запрос название поля, которое нас интересует
             query = f"select distinct {key} from nat_tv_ad_dict where cleaning_flag=2"
             # отправляем запрос в Общий справочник объявлений
@@ -281,7 +282,7 @@ def update_tv_index_dicts():
 # в дальнейшешем их НЕ нужно обновлять, т.е. они хранятся в неизменном виде
 # список справочников по умолчанию указан в этом словаре tv_index_default_dicts
 def download_tv_index_default_dicts():
-    for key, value in config.tv_index_default_dicts.items():
+    for key, value in config_tv_index.tv_index_default_dicts.items():
         # создаем пустые таблицы для словарей по умолчанию
         createDBTable(db_name, value[0] , value[1], flag='create')
         # отправляем запрос в ТВ индекс
@@ -303,23 +304,23 @@ def update_nat_tv_ad_dict():
     # забираем гугл докс с чисткой
     df_cleaning_dict = get_cleaning_dict(media_type_lst=['tv'])
     # нормализуем типы данных
-    df_cleaning_dict = normalize_columns_types(df_cleaning_dict, config.custom_ad_dict_int_lst) 
+    df_cleaning_dict = normalize_columns_types(df_cleaning_dict, config_tv_index.custom_ad_dict_int_lst) 
     
     # создаем список из названий полей, которые нам нужны дальше для метчинга
-    custom_cols_list = [col[:col.find(' ')] for col in config.custom_ad_dict_vars_list]
+    custom_cols_list = [col[:col.find(' ')] for col in config_tv_index.custom_ad_dict_vars_list]
     custom_cols_list = list(set(custom_cols_list) - set(['ad_id', 'media_type']))
     # оставляем только нужные поля
     df_cleaning_dict = df_cleaning_dict[custom_cols_list]
     
     # формируем список названий полей, которые нам нужно забрать из БД
     # из справочника nat_tv_ad_dict
-    nat_tv_ad_dict_short_cols = [col[:col.find(' ')] for col in config.nat_tv_ad_dict_vars_list]
+    nat_tv_ad_dict_short_cols = [col[:col.find(' ')] for col in config_tv_index.nat_tv_ad_dict_vars_list]
     nat_tv_ad_dict_short_cols = list(set(nat_tv_ad_dict_short_cols) - set(custom_cols_list)) + ['media_key_id']
     # приводим список к строке
     nat_tv_ad_dict_short_cols = ', '.join(nat_tv_ad_dict_short_cols)
     
     # отправляем запрос в БД и забираем ВСЕ строки и нужные поля
-    query = f"select {nat_tv_ad_dict_short_cols}  from {config.nat_tv_ad_dict}"
+    query = f"select {nat_tv_ad_dict_short_cols}  from {config_tv_index.nat_tv_ad_dict}"
     nat_tv_ad_dict_df = get_mssql_table(db_name, query=query) 
 
     # объединяем справочник из БД с таблицей чистки
@@ -329,16 +330,16 @@ def update_nat_tv_ad_dict():
     # остальные NaN заполняем пустотой
     nat_tv_ad_dict_df = nat_tv_ad_dict_df.fillna('')
     # создаем список полей, которые нужно оставить в этом датаФрейме
-    nat_tv_ad_dict_cols = [col[:col.find(' ')] for col in config.nat_tv_ad_dict_vars_list]
+    nat_tv_ad_dict_cols = [col[:col.find(' ')] for col in config_tv_index.nat_tv_ad_dict_vars_list]
     nat_tv_ad_dict_df = nat_tv_ad_dict_df[nat_tv_ad_dict_cols]
     # нормализуем типы данных
-    nat_tv_ad_dict_df = normalize_columns_types(nat_tv_ad_dict_df, config.nat_tv_ad_dict_int_lst)
+    nat_tv_ad_dict_df = normalize_columns_types(nat_tv_ad_dict_df, config_tv_index.nat_tv_ad_dict_int_lst)
     
     # удаляем все данные из справочника nat_tv_ad_dict в БД 
-    createDBTable(db_name, config.nat_tv_ad_dict, config.nat_tv_ad_dict_vars_list, flag='drop')
+    createDBTable(db_name, config_tv_index.nat_tv_ad_dict, config_tv_index.nat_tv_ad_dict_vars_list, flag='drop')
     
     # записываем новые данные в справочник Объявлений
-    downloadTableToDB(db_name, config.nat_tv_ad_dict, nat_tv_ad_dict_df)
+    downloadTableToDB(db_name, config_tv_index.nat_tv_ad_dict, nat_tv_ad_dict_df)
 
 
 # In[11]:

@@ -31,6 +31,7 @@ from mediascope_api.mediavortex import tasks as cwt
 from mediascope_api.mediavortex import catalogs as cwc
 
 import config
+import config_tv_index
 from normalize_funcs import *
 from db_funcs import createDBTable, downloadTableToDB, get_mssql_table, removeRowsFromDB
 from create_dicts import get_cleaning_dict, get_media_discounts, download_tv_index_default_dicts
@@ -143,10 +144,10 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
     
     if flag.lower()=='first':
         # специально не стал делать цикл, чтобы явно показать, какие именно создаем таблицы
-        createDBTable(db_name, config.nat_tv_simple , config.nat_tv_simple_vars_list, flag='create')
-        createDBTable(db_name, config.nat_tv_buying , config.nat_tv_buying_vars_list, flag='create')
+        createDBTable(db_name, config_tv_index.nat_tv_simple , config_tv_index.nat_tv_simple_vars_list, flag='create')
+        createDBTable(db_name, config_tv_index.nat_tv_buying , config_tv_index.nat_tv_buying_vars_list, flag='create')
         # создаем пустую таблицу-справочник объявлений
-        createDBTable(db_name, config.nat_tv_ad_dict , config.nat_tv_ad_dict_vars_list, flag='create')
+        createDBTable(db_name, config_tv_index.nat_tv_ad_dict , config_tv_index.nat_tv_ad_dict_vars_list, flag='create')
         # создаем и заполняем данными словари по умолчанию
         download_tv_index_default_dicts()
         
@@ -157,14 +158,14 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # [0] - название таблицы в БД
         # [1] - список полей с типами данных для БД
         # [2] - список полей с целочисленными значениями для нормализации
-        for key, value in config.tv_index_dicts.items():
+        for key, value in config_tv_index.tv_index_dicts.items():
             createDBTable(db_name, value[0] , value[1], flag='create')
 
     # получаем данные из гугл диска с чисткой объявлений 
     # - передаем список Типов медиа, чтобы оставить нужные значения
     # custom_cleaning_dict = get_cleaning_dict(media_type_lst)
     # список полей из гугл таблицы Чистка, которые нужно добавить в справочник объявлений
-    custom_cols_list = [col[:col.find(' ')] for col in config.custom_ad_dict_vars_list]
+    custom_cols_list = [col[:col.find(' ')] for col in config_tv_index.custom_ad_dict_vars_list]
     # убираем некоторые поля, т.е. их заберем из отчета Simple
     custom_cols_list = list(set(custom_cols_list) - set(['media_type', 'include_exclude', 'ad_id']))
     custom_cols_str = ', '.join(custom_cols_list)
@@ -172,12 +173,12 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
     print(sep_str)
     print('Забираем из БД НЕ ОБНОВЛЕННЫЙ справочник объявлений')
    
-    query = f"select {custom_cols_str}  from {config.nat_tv_ad_dict}"
+    query = f"select {custom_cols_str}  from {config_tv_index.nat_tv_ad_dict}"
     nat_tv_ad_dict_df = get_mssql_table(db_name, query=query)
     print(sep_str)
     
     # # Итоговый список полей, который нам нужен в словаре объявлений
-    nat_tv_ad_dict_cols_list = [col[:col.find(' ')] for col in config.nat_tv_ad_dict_vars_list]
+    nat_tv_ad_dict_cols_list = [col[:col.find(' ')] for col in config_tv_index.nat_tv_ad_dict_vars_list]
     
 # Если start_date НЕ передается в функцию - мы считаем, что это еженедельное обновление
 # Данные в БД TV Index идут с отставанием 3 дня от текущей даты
@@ -194,8 +195,8 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         print(f'Удалем строки из таблицы: nat_tv_simple и nat_tv_buying по условию: {cond}')
         print()
 
-        removeRowsFromDB(db_name, config.nat_tv_simple, cond)
-        removeRowsFromDB(db_name, config.nat_tv_buying, cond)
+        removeRowsFromDB(db_name, config_tv_index.nat_tv_simple, cond)
+        removeRowsFromDB(db_name, config_tv_index.nat_tv_buying, cond)
         print()
     else:
         start_date = datetime.strptime(str(start_date), '%Y-%m-%d').date()
@@ -236,13 +237,13 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # Добавляем тип медиа и Дисконты к расходым по годам
         df_buying_final = append_custom_columns(df_buying_final, report='buying')
         # нормализуем отчет по Баинговой аудитории
-        df_buying_final = normalize_columns_types(df_buying_final, config.nat_tv_buying_int_lst, config.nat_tv_buying_float_lst)
+        df_buying_final = normalize_columns_types(df_buying_final, config_tv_index.nat_tv_buying_int_lst, config_tv_index.nat_tv_buying_float_lst)
         
         # загружаем данные в БД по отчету Buying
         print('Записываем данные в таблицу фактов Buying')
         print()
         # записываем в БД отчет по Баинговой аудитории
-        downloadTableToDB(db_name, config.nat_tv_buying, df_buying_final)
+        downloadTableToDB(db_name, config_tv_index.nat_tv_buying, df_buying_final)
         # удаляем этот датаФрейм
         del df_buying_final
         
@@ -261,14 +262,14 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # добавляем флаг чистки в датаФрейм
         df_simple_final = append_custom_columns(df_simple_final, nat_tv_ad_dict=nat_tv_ad_dict_df, report='simple')
         # Нормализуем все поля в датаФрейме
-        df_simple_final = normalize_columns_types(df_simple_final, config.nat_tv_simple_int_lst, config.nat_tv_simple_float_lst)
+        df_simple_final = normalize_columns_types(df_simple_final, config_tv_index.nat_tv_simple_int_lst, config_tv_index.nat_tv_simple_float_lst)
         
         
         # создаем таблицу с уникальными объявлениями и их характеристиками
         simple_ad_dict_df = df_simple_final[nat_tv_ad_dict_cols_list].drop_duplicates('media_key_id')
        
         # забираем из БД из справочника объявлений уникальные ИД
-        query = f"select distinct adId  from {config.nat_tv_ad_dict}"
+        query = f"select distinct adId  from {config_tv_index.nat_tv_ad_dict}"
         nat_tv_ad_id_dict = get_mssql_table(db_name, query=query)
         # создаем список Уникальных ИД Объявлений, которые уже есть в справочнике в БД
         nat_tv_ad_id_lst = list(nat_tv_ad_id_dict['adId'])
@@ -278,27 +279,27 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # на всякий случай обрезаем описание объявления до 500 символов, чтобы не было переполнения строки
         simple_ad_dict_df['adNotes'] = simple_ad_dict_df['adNotes'].str.slice(0, 500)
         # нормализуем типы данных
-        simple_ad_dict_df = normalize_columns_types(simple_ad_dict_df, config.nat_tv_ad_dict_int_lst)
+        simple_ad_dict_df = normalize_columns_types(simple_ad_dict_df, config_tv_index.nat_tv_ad_dict_int_lst)
         
         print()
         print(sep_str)
         print('Записываем данные в справочник объявлений TV_Index')
         print()
         
-        downloadTableToDB(db_name, config.nat_tv_ad_dict, simple_ad_dict_df)
+        downloadTableToDB(db_name, config_tv_index.nat_tv_ad_dict, simple_ad_dict_df)
         
         print(sep_str)
         print()
 
         # забираем список полей, которые созданы в БД в таблице фактов Simple
-        nat_tv_simple_cols_lst = [col[:col.find(' ')] for col in config.nat_tv_simple_vars_list]
+        nat_tv_simple_cols_lst = [col[:col.find(' ')] for col in config_tv_index.nat_tv_simple_vars_list]
         # оставляем только нужные поля в датаФрейме для загрузки в БД
         df_simple_final = df_simple_final[nat_tv_simple_cols_lst]
         
         # загружаем данные в БД по отчету Simple
         print('Записываем данные в таблицу фактов Simple')
         print()
-        downloadTableToDB(db_name, config.nat_tv_simple, df_simple_final)
+        downloadTableToDB(db_name, config_tv_index.nat_tv_simple, df_simple_final)
         
         print(sep_str)
         print()
@@ -334,16 +335,16 @@ def get_nat_tv_simple_report(weekday_filter=None, date_filter=None,time_filter=N
     cats = cwc.MediaVortexCats()
     tasks = []
     # список аудиторий, по которым собираем статистику
-    targets = config.nat_tv_targets
+    targets = config_tv_index.nat_tv_targets
     # список срезов, по которым будет разбивка отчета
-    slices = config.nat_tv_slices
+    slices = config_tv_index.nat_tv_slices
     # список метрик для отчета Simple
-    statistics = config.nat_tv_simple_statistics
+    statistics = config_tv_index.nat_tv_simple_statistics
     # Здесь указаны логические условия ad_filter 
     # Они применяются для получения статистики в отчетах Simple и Buying# условия фильтрации для запроса 
-    ad_filter = config.nat_tv_ad_filter
+    ad_filter = config_tv_index.nat_tv_ad_filter
     # Опции для расчета - вся рф и тд.
-    options = config.nat_tv_options
+    options = config_tv_index.nat_tv_options
     
     if targets:
         # Для каждой ЦА формируем задание и отправляем на расчет
@@ -413,14 +414,14 @@ def get_nat_tv_buying_report(weekday_filter=None, date_filter=None,time_filter=N
     tasks = []
 
     # список срезов, по которым будет разбивка отчета по Баинговым аудиториям
-    slices = config.nat_tv_buying_slices
+    slices = config_tv_index.nat_tv_buying_slices
     # список метрик для отчета Buying
-    statistics = config.nat_tv_bying_statistics
+    statistics = config_tv_index.nat_tv_bying_statistics
     # Здесь указаны логические условия ad_filter 
     # Они применяются для получения статистики в отчетах Simple и Buying# условия фильтрации для запроса 
-    ad_filter = config.nat_tv_ad_filter
+    ad_filter = config_tv_index.nat_tv_ad_filter
     # Опции для расчета - вся рф и тд.
-    options = config.nat_tv_options
+    options = config_tv_index.nat_tv_options
     
     # Формируем задание для API TV Index в формате JSON
     task_json = mtask.build_simple_task(date_filter=date_filter, weekday_filter=weekday_filter, 
