@@ -29,7 +29,7 @@ import warnings
 
 
 
-# In[2]:
+# In[3]:
 
 
 db_name = config.db_name
@@ -43,9 +43,33 @@ password_mssql = config.db_mssql_pass
 # In[ ]:
 
 
-def get_mssql_connection(db_name):
+
+
+
+# In[10]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[19]:
+
+
+def get_mssql_connection(db_name, server=config.host_mssql, port=config.port_mssql, login=config.db_mssql_login, password=config.db_mssql_pass):
     try:
-        engine = connect(driver="SQL Server", server=host_mssql, port=port_mssql, database=db_name)
+        engine = connect(driver="SQL Server", server=server, port=port, database=db_name, uid=login, pwd=password)
         if engine:
             print('Все ок. Подключились!')
             return engine
@@ -229,8 +253,12 @@ def downloadTableToDB(db_name, table_name, df):
 # если передаем table_name - значит используется запрос Select *
 # в парметр query можем передать собсвенный Select, при этом table_name НЕ УКАЗЫВАЕМ
 
-def get_mssql_table(db_name, table_name='', query=''):
-    conn = get_mssql_connection(db_name)
+def get_mssql_table(db_name, table_name='', query='', conn_lst=None):
+    if conn_lst:
+        conn = get_mssql_connection(db_name, server=conn_lst[0], port=conn_lst[1], login=conn_lst[2], password=conn_lst[3])
+    else:
+        conn = get_mssql_connection(db_name)
+        
     cursor = conn.cursor()
     
     if table_name:
