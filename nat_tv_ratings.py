@@ -32,11 +32,16 @@ from mediascope_api.mediavortex import catalogs as cwc
 
 import config
 import config_tv_index
-from normalize_funcs import *
+from normalize_funcs import normalize_columns_types, append_custom_columns
 from db_funcs import createDBTable, downloadTableToDB, get_mssql_table, removeRowsFromDB
-from create_dicts import get_cleaning_dict, get_media_discounts, download_tv_index_default_dicts
+from create_dicts import get_cleaning_dict, get_media_discounts
+from create_dicts_tv_index import download_tv_index_default_dicts
 
 
+# Cоздаем объекты для работы с TVI API
+mnet = mscore.MediascopeApiNetwork()
+mtask = cwt.MediaVortexTask()
+cats = cwc.MediaVortexCats()
 
 # Забриае название БД
 db_name = config.db_name
@@ -80,48 +85,10 @@ pd.set_option('mode.chained_assignment', None)
 sep_str = '*' * 50
 
 
-# In[3]:
+# In[ ]:
 
 
-# функция для добавления флага чистки
-# на вход принимает основной датаФрейм
-# и сокращенный датаФрейм из гугл диска, в котором оставили только ИД объявления и флаг чистки
-# если объявления нет в гуглдоксе, то ставим флаг 2
-# report simple/buying - в зависимости от типа отчета используем разную логику
-# для отчета simple - добавляем флаг чистки из БД
-# для отчета buying добавляем дисконт к расходам по году и типу медиа
-def append_custom_columns(df, nat_tv_ad_dict=None, report='simple'):
-    # добавляем поле с типом мелиа - TV
-    # создаем спец ключ для объединения со справочником чистка объявлений
-    df['media_type'] = 'TV'
-    df['media_key_id'] = df['media_type'] + '_' + df['adId']
-    
-    if report.lower()=='buying':
-        # забираем таблицу Медиа дисконтов
-        media_discounts = get_media_discounts(['TV'])
-    # забираем Год из даты отчета, чтобы добавить дисконт
-        df['year'] = df['researchDate'].str.slice(0, 4)
-        df['year'] = df['year'].astype('int64')
-        
-        df = df.merge(media_discounts, how='left', left_on=['media_type', 'year'], right_on=['media_type', 'year'])
-        df['ConsolidatedCostRUB_disc'] = df['ConsolidatedCostRUB'] * df['disc']
-        
-        return df
-        
-    if report.lower()=='simple':
-        # чтобы соеденить со словарем приводим adId к типу int64
-        # df['adId'] = df['adId'].astype('int64')
-        # добавляем флаг чистки в датаФрейм
-        df = df.merge(nat_tv_ad_dict, how='left', left_on=['media_key_id'], right_on=['media_key_id'])
-        # удаляем лишнее поле
-        # df = df.drop(columns=['ad_id'])
-        # ставим флаг чистки = 2 для ИД новый неочищенных объявлений
-        df['cleaning_flag'] = df['cleaning_flag'].fillna(2)
-        df = df.fillna('')
-        # Добавляем размер дисконта по Типу медиа и Году
-    
-    
-    return df
+
 
 
 # In[ ]:
@@ -130,7 +97,7 @@ def append_custom_columns(df, nat_tv_ad_dict=None, report='simple'):
 
 
 
-# In[4]:
+# In[3]:
 
 
 # основная функция для получения данных из Медиаскоп
@@ -144,10 +111,10 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
     
     if flag.lower()=='first':
         # специально не стал делать цикл, чтобы явно показать, какие именно создаем таблицы
-        createDBTable(db_name, config_tv_index.nat_tv_simple , config_tv_index.nat_tv_simple_vars_list, flag='create')
-        createDBTable(db_name, config_tv_index.nat_tv_buying , config_tv_index.nat_tv_buying_vars_list, flag='create')
+        createDBTable(config.db_name, config_tv_index.nat_tv_simple , config_tv_index.nat_tv_simple_vars_list, flag='create')
+        createDBTable(config.db_name, config_tv_index.nat_tv_buying , config_tv_index.nat_tv_buying_vars_list, flag='create')
         # создаем пустую таблицу-справочник объявлений
-        createDBTable(db_name, config_tv_index.nat_tv_ad_dict , config_tv_index.nat_tv_ad_dict_vars_list, flag='create')
+        createDBTable(config.db_name, config_tv_index.nat_tv_ad_dict , config_tv_index.nat_tv_ad_dict_vars_list, flag='create')
         # создаем и заполняем данными словари по умолчанию
         download_tv_index_default_dicts()
         
@@ -159,13 +126,13 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # [1] - список полей с типами данных для БД
         # [2] - список полей с целочисленными значениями для нормализации
         for key, value in config_tv_index.tv_index_dicts.items():
-            createDBTable(db_name, value[0] , value[1], flag='create')
+            createDBTable(config.db_name, value[0] , value[1], flag='create')
 
     # получаем данные из гугл диска с чисткой объявлений 
     # - передаем список Типов медиа, чтобы оставить нужные значения
     # custom_cleaning_dict = get_cleaning_dict(media_type_lst)
     # список полей из гугл таблицы Чистка, которые нужно добавить в справочник объявлений
-    custom_cols_list = [col[:col.find(' ')] for col in config_tv_index.custom_ad_dict_vars_list]
+    custom_cols_list = [col[:col.find(' ')] for col in config.custom_ad_dict_vars_list]
     # убираем некоторые поля, т.е. их заберем из отчета Simple
     custom_cols_list = list(set(custom_cols_list) - set(['media_type', 'include_exclude', 'ad_id']))
     custom_cols_str = ', '.join(custom_cols_list)
@@ -195,8 +162,8 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         print(f'Удалем строки из таблицы: nat_tv_simple и nat_tv_buying по условию: {cond}')
         print()
 
-        removeRowsFromDB(db_name, config_tv_index.nat_tv_simple, cond)
-        removeRowsFromDB(db_name, config_tv_index.nat_tv_buying, cond)
+        removeRowsFromDB(config.db_name, config_tv_index.nat_tv_simple, cond)
+        removeRowsFromDB(config.db_name, config_tv_index.nat_tv_buying, cond)
         print()
     else:
         start_date = datetime.strptime(str(start_date), '%Y-%m-%d').date()
@@ -243,7 +210,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         print('Записываем данные в таблицу фактов Buying')
         print()
         # записываем в БД отчет по Баинговой аудитории
-        downloadTableToDB(db_name, config_tv_index.nat_tv_buying, df_buying_final)
+        downloadTableToDB(config.db_name, config_tv_index.nat_tv_buying, df_buying_final)
         # удаляем этот датаФрейм
         del df_buying_final
         
@@ -260,7 +227,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # # забираем таблицу Медиа дисконтов
         # media_discounts = get_media_discounts(['TV'])
         # добавляем флаг чистки в датаФрейм
-        df_simple_final = append_custom_columns(df_simple_final, nat_tv_ad_dict=nat_tv_ad_dict_df, report='simple')
+        df_simple_final = append_custom_columns(df_simple_final, report='simple', nat_tv_ad_dict=nat_tv_ad_dict_df)
         # Нормализуем все поля в датаФрейме
         df_simple_final = normalize_columns_types(df_simple_final, config_tv_index.nat_tv_simple_int_lst, config_tv_index.nat_tv_simple_float_lst)
         
@@ -270,7 +237,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
        
         # забираем из БД из справочника объявлений уникальные ИД
         query = f"select distinct adId  from {config_tv_index.nat_tv_ad_dict}"
-        nat_tv_ad_id_dict = get_mssql_table(db_name, query=query)
+        nat_tv_ad_id_dict = get_mssql_table(config.db_name, query=query)
         # создаем список Уникальных ИД Объявлений, которые уже есть в справочнике в БД
         nat_tv_ad_id_lst = list(nat_tv_ad_id_dict['adId'])
         # оставляем только те объявления, которых нет в справочнике
@@ -286,7 +253,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         print('Записываем данные в справочник объявлений TV_Index')
         print()
         
-        downloadTableToDB(db_name, config_tv_index.nat_tv_ad_dict, simple_ad_dict_df)
+        downloadTableToDB(config.db_name, config_tv_index.nat_tv_ad_dict, simple_ad_dict_df)
         
         print(sep_str)
         print()
@@ -299,7 +266,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
         # загружаем данные в БД по отчету Simple
         print('Записываем данные в таблицу фактов Simple')
         print()
-        downloadTableToDB(db_name, config_tv_index.nat_tv_simple, df_simple_final)
+        downloadTableToDB(config.db_name, config_tv_index.nat_tv_simple, df_simple_final)
         
         print(sep_str)
         print()
@@ -314,7 +281,7 @@ def get_nat_tv_reports(start_date='', end_date='', flag='regular'):
     # return df_simple_final
 
 
-# In[5]:
+# In[4]:
 
 
 # УКАЗЫВАЕМ на листе config
@@ -392,7 +359,7 @@ def get_nat_tv_simple_report(weekday_filter=None, date_filter=None,time_filter=N
         return df
 
 
-# In[6]:
+# In[ ]:
 
 
 # УКАЗЫВАЕМ на листе config
@@ -446,13 +413,13 @@ def get_nat_tv_buying_report(weekday_filter=None, date_filter=None,time_filter=N
 
 
 
-# In[7]:
+# In[ ]:
 
 
 # get_nat_tv_reports(flag='first')
 
 
-# In[8]:
+# In[ ]:
 
 
 # start_date = '2023-01-01' #'2023-01-01' '2025-03-25'
@@ -464,13 +431,13 @@ def get_nat_tv_buying_report(weekday_filter=None, date_filter=None,time_filter=N
 # print(f'start_date: {start_date} / end_date: {end_date}')
 
 
-# In[9]:
+# In[ ]:
 
 
 # get_nat_tv_reports(start_date=start_date, end_date=end_date, flag='regular')
 
 
-# In[10]:
+# In[ ]:
 
 
 # get_nat_tv_reports(start_date=start_date, end_date=end_date, flag='first')

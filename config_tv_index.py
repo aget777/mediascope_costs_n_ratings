@@ -16,7 +16,7 @@ import config
 
 # Здесь прописываем логические условия ad_filter 
 # Они применяются для получения статистики в отчетах Simple и Buying
-nat_tv_ad_filter = f'articleLevel4Id IN ({config.article_lev_4_id_str}) or subbrandId IN ({config.subbrand_id_str})'
+nat_tv_ad_filter = config.nat_tv_ad_filter
 
 
 # In[4]:
@@ -174,7 +174,7 @@ nat_tv_buying = 'nat_tv_buying'
 # добавляем метрики отчета Buying
 nat_tv_buying_vars_list = [col for col in nat_tv_simple_vars_list if col[:col.find(' ')] not in nat_tv_simple_float_lst]
 nat_tv_buying_vars_list = nat_tv_buying_vars_list + ['Quantity int', 'SalesRtgPer float', 'StandSalesRtgPer float', 
-                    'ConsolidatedCostRUB float', 'year int', 'disc float', 'ConsolidatedCostRUB_disc float']
+                    'ConsolidatedCostRUB float', 'year smallint', 'disc float', 'ConsolidatedCostRUB_disc float']
 
 nat_tv_buying_int_lst = ['adId', 'adStandardDuration', 'adSpotId', 'regionId', 'adTypeId', 'tvCompanyId', 'year', 'Quantity']
 nat_tv_buying_float_lst = ['SalesRtgPer', 'StandSalesRtgPer', 'ConsolidatedCostRUB', 'ConsolidatedCostRUB_disc', 'disc']
@@ -195,39 +195,39 @@ nat_tv_buying_slices = list(set(nat_tv_buying_slices) - set(nat_tv_buying_float_
 # In[11]:
 
 
-# # Справочник Объявлений с собственными названиями
-# # сотрудники ведут гугл докс с чисткой
-# # в этом же файле добавили новые поля с собственными группировками
-# # загружаем эту кастомную таблицу в БД, чтобы потом использовать в дашборде
-custom_ad_dict = 'custom_ad_dict'
+# # # Справочник Объявлений с собственными названиями
+# # # сотрудники ведут гугл докс с чисткой
+# # # в этом же файле добавили новые поля с собственными группировками
+# # # загружаем эту кастомную таблицу в БД, чтобы потом использовать в дашборде
+# custom_ad_dict = 'custom_ad_dict'
 
-custom_ad_dict_vars_list = [
-            'media_key_id nvarchar(40)',
-            'media_type nvarchar(20)',
-            'ad_id int',
-            # 'advertiser_list nvarchar(150)',
-            # 'brand_list nvarchar(300)',
-            # 'subbrand_list nvarchar(300)',
-            # 'model_list nvarchar(500)',
-            # 'article_list_2 nvarchar(300)',
-            # 'article_list_3 nvarchar(400)',
-            # 'article_list_4 nvarchar(500)',
-            # 'ad_name nvarchar(200)',
-            # 'ad_description nvarchar(500)',
-            # 'first_issue_date nvarchar(10)',
-            'clip_type_region nvarchar(100)',
-            'advertiser_type nvarchar(20)',
-            'advertiser_main nvarchar(100)',
-            'brand_main nvarchar(150)',
-            'competitor nvarchar(20)',
-            'category_general nvarchar(50)',
-            'include_exclude nvarchar(15)',
-            'delivery nvarchar(30)',
-            'product_category nvarchar(50)',
-            'cleaning_flag tinyint'
-]
+# custom_ad_dict_vars_list = [
+#             'media_key_id nvarchar(40)',
+#             'media_type nvarchar(20)',
+#             'ad_id int',
+#             # 'advertiser_list nvarchar(150)',
+#             # 'brand_list nvarchar(300)',
+#             # 'subbrand_list nvarchar(300)',
+#             # 'model_list nvarchar(500)',
+#             # 'article_list_2 nvarchar(300)',
+#             # 'article_list_3 nvarchar(400)',
+#             # 'article_list_4 nvarchar(500)',
+#             # 'ad_name nvarchar(200)',
+#             # 'ad_description nvarchar(500)',
+#             # 'first_issue_date nvarchar(10)',
+#             'clip_type_region nvarchar(100)',
+#             'advertiser_type nvarchar(20)',
+#             'advertiser_main nvarchar(100)',
+#             'brand_main nvarchar(150)',
+#             'competitor nvarchar(20)',
+#             'category_general nvarchar(50)',
+#             'include_exclude nvarchar(15)',
+#             'delivery nvarchar(30)',
+#             'product_category nvarchar(50)',
+#             'cleaning_flag tinyint'
+# ]
 
-custom_ad_dict_int_lst = ['ad_id', 'cleaning_flag']
+# custom_ad_dict_int_lst = ['ad_id', 'cleaning_flag']
 
 
 # In[12]:
@@ -243,14 +243,14 @@ nat_tv_ad_dict_vars_list = [
             'media_key_id nvarchar(40)',
             'media_type nvarchar(20)',
             'adId int',
-            'adName nvarchar(200)',
-            'adNotes nvarchar(500)',
+            'adName nvarchar(100)',
+            'adNotes nvarchar(250)',
             'advertiserListId int',
             'brandListId int',
             'subbrandListId int',
             'modelListId int',
-            'articleList2Id smallint',
-            'articleList3Id smallint',
+            'articleList2Id int',
+            'articleList3Id int',
             'articleList4Id int',
             'adFirstIssueDate nvarchar(10)',
             'adSloganAudioId int',
